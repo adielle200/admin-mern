@@ -36,7 +36,7 @@ EXPOSE 3000
 ENV PORT 3000
 
 CMD ["npm", "start"]
-Cree l'image
+# Creer l'image
 docker build -t localhost:8000/mern-app:latest .
 docker push localhost:8000/mern-app:latest
 
