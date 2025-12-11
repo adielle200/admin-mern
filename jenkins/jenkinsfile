@@ -17,7 +17,9 @@ pipeline {
             steps {
                 script {
                     echo "🔨 Construction de l'image FRONTEND : ${FRONT_IMAGE}"
-                    sh "docker build -f ../Dockerfile.frontend -t ${FRONT_IMAGE} .."
+                    dir('..') {
+                        sh "docker build -f Dockerfile.frontend -t ${FRONT_IMAGE} ."
+                    }
                 }
             }
         }
@@ -26,7 +28,9 @@ pipeline {
             steps {
                 script {
                     echo "🔨 Construction de l'image BACKEND : ${BACK_IMAGE}"
-                    sh "docker build -f ../Dockerfile.backend -t ${BACK_IMAGE} .."
+                    dir('..') {
+                        sh "docker build -f Dockerfile.backend -t ${BACK_IMAGE} ."
+                    }
                 }
             }
         }
@@ -72,4 +76,4 @@ pipeline {
         }
     }
 }
-
+                       
