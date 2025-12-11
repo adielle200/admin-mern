@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         IMAGE_TAG = "${env.BUILD_NUMBER}"
-        IMAGE_NAME = "mern-app"
-        FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
+        FRONT_IMAGE = "mern-frontend:${IMAGE_TAG}"
+        BACK_IMAGE = "mern-backend:${IMAGE_TAG}"
     }
 
     options {
@@ -13,11 +13,20 @@ pipeline {
 
     stages {
 
-        stage('Build Docker Image') {
+        stage('Build Frontend Docker Image') {
             steps {
                 script {
-                    echo "🔨 Construction de l'image : ${FULL_IMAGE}"
-                    sh "docker build -t ${FULL_IMAGE} ."
+                    echo "🔨 Construction de l'image FRONTEND : ${FRONT_IMAGE}"
+                    sh "docker build -f ../Dockerfile.frontend -t ${FRONT_IMAGE} .."
+                }
+            }
+        }
+
+        stage('Build Backend Docker Image') {
+            steps {
+                script {
+                    echo "🔨 Construction de l'image BACKEND : ${BACK_IMAGE}"
+                    sh "docker build -f ../Dockerfile.backend -t ${BACK_IMAGE} .."
                 }
             }
         }
@@ -33,16 +42,16 @@ pipeline {
             }
         }
 
-        stage('Load Image into Kind') {
+        stage('Load Images into Kind') {
             steps {
                 script {
-                    echo "📦 Chargement de l'image ${FULL_IMAGE} dans Kind..."
-                    sh "kind load docker-image ${FULL_IMAGE} --name mern-cluster"
+                    echo "📦 Chargement de ${FRONT_IMAGE} et ${BACK_IMAGE} dans Kind..."
+                    sh "kind load docker-image ${FRONT_IMAGE} --name mern-cluster"
+                    sh "kind load docker-image ${BACK_IMAGE} --name mern-cluster"
                 }
             }
         }
 
-        // --- BLOC MODIFIÉ ICI ---
         stage('Deploy with Terraform') {
             steps {
                 dir('jenkins/terraform') {
@@ -53,7 +62,9 @@ pipeline {
                             terraform init
 
                             echo "🔹 Apply Terraform..."
-                            terraform apply -auto-approve -var="image_tag=${IMAGE_TAG}"
+                            terraform apply -auto-approve \
+                                -var="frontend_image_tag=${IMAGE_TAG}" \
+                                -var="backend_image_tag=${IMAGE_TAG}"
                         """
                     }
                 }

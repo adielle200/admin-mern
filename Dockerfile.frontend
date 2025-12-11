@@ -1,23 +1,26 @@
+# Étape 1 : Build du frontend
 FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Installer les dépendances
+# Copier uniquement les fichiers du frontend
 COPY frontend/package*.json ./
-RUN npm install
 
-# Copier le code
-COPY frontend ./
+# Installer les dépendances
+RUN npm ci --omit=dev
 
-# Build de la partie frontend
+# Copier tout le code du frontend
+COPY frontend/ .
+
+# Construire l’application
 RUN npm run build
 
-# Étape finale pour servir l'app
-FROM node:18-alpine
-WORKDIR /app
+# Étape 2 : Serveur web Nginx
+FROM nginx:alpine
 
-COPY --from=builder /app ./
+# Copier le build dans nginx
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-EXPOSE 3000
-CMD ["npm", "start"]
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
 
