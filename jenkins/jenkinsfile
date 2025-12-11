@@ -1,8 +1,7 @@
 pipeline {
-    agent any 
+    agent any
 
     environment {
-        // Tag de l'image
         IMAGE_TAG = "${env.BUILD_NUMBER}"
         IMAGE_NAME = "mern-app"
         FULL_IMAGE = "${IMAGE_NAME}:${IMAGE_TAG}"
@@ -13,60 +12,50 @@ pipeline {
     }
 
     stages {
-        
-        // --- ÉTAPE 1 : Construire l'image Docker ---
+
         stage('Build Docker Image') {
             steps {
                 script {
                     echo "🔨 Construction de l'image : ${FULL_IMAGE}"
-                    // On construit l'image avec un tag simple
                     sh "docker build -t ${FULL_IMAGE} ."
                 }
             }
         }
 
-        // --- ÉTAPE 2 : Créer le Cluster Kind (Infra Terraform hors-Terraform) ---
         stage('Setup Kind Cluster') {
             steps {
                 script {
                     echo "☁️ Démarrage du cluster Kind (mern-cluster)..."
-                    // Suppression de l'ancien cluster s'il existe
                     sh 'kind delete cluster --name mern-cluster || true'
-                    // Création du nouveau cluster
                     sh 'kind create cluster --name mern-cluster'
-                    // Vérification de l'accès (le kubeconfig est fusionné automatiquement)
                     sh 'kubectl cluster-info --context kind-mern-cluster'
                 }
             }
         }
-        
-        // --- ÉTAPE 3 : Charger l'image dans le Cluster Kind ---
+
         stage('Load Image into Kind') {
             steps {
                 script {
                     echo "📦 Chargement de l'image ${FULL_IMAGE} dans Kind..."
-                    // Transfère l'image directement depuis le Docker local vers les nodes Kind
                     sh "kind load docker-image ${FULL_IMAGE} --name mern-cluster"
                 }
             }
         }
 
-        // --- ÉTAPE 4 : Déploiement de l'Application MERN (via Terraform) ---
+        // --- BLOC MODIFIÉ ICI ---
         stage('Deploy with Terraform') {
             steps {
-                script {
-                    echo "🚀 Démarrage du déploiement avec Terraform."
-                    sh """
-                        cd terraform
-                        
-                        echo "🔹 Init Terraform..."
-                        terraform init
-                        
-                        echo "🔹 Apply Terraform..."
-                        # On passe le tag unique à Terraform
-                        # L'image utilisée sera simplement 'mern-app:<tag>' car elle est déjà chargée
-                        terraform apply -auto-approve -var="image_tag=${IMAGE_TAG}"
-                    """
+                dir('jenkins/terraform') {
+                    script {
+                        echo "🚀 Déploiement avec Terraform..."
+                        sh """
+                            echo "🔹 Init Terraform..."
+                            terraform init
+
+                            echo "🔹 Apply Terraform..."
+                            terraform apply -auto-approve -var="image_tag=${IMAGE_TAG}"
+                        """
+                    }
                 }
             }
         }
