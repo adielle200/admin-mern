@@ -28,7 +28,7 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
-# Changer les permissions
+# Permissions
 RUN chown -R nextjs:nodejs /app
 USER nextjs
 
@@ -36,7 +36,4 @@ EXPOSE 3000
 ENV PORT 3000
 
 CMD ["npm", "start"]
-# Creer l'image
-docker build -t localhost:8000/mern-app:latest .
-docker push localhost:8000/mern-app:latest
 
