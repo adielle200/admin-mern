@@ -17,7 +17,7 @@ pipeline {
             steps {
                 script {
                     echo "🔨 Construction de l'image FRONTEND : ${FRONT_IMAGE}"
-                    sh "docker build -f frontend/Dockerfile.frontend -t ${FRONT_IMAGE} frontend"
+                    sh "docker build -t ${FRONT_IMAGE} frontend"
                 }
             }
         }
@@ -26,7 +26,7 @@ pipeline {
             steps {
                 script {
                     echo "🔨 Construction de l'image BACKEND : ${BACK_IMAGE}"
-                    sh "docker build -f backend/Dockerfile.backend -t ${BACK_IMAGE} backend"
+                    sh "docker build -t ${BACK_IMAGE} backend"
                 }
             }
         }
@@ -58,10 +58,7 @@ pipeline {
                     script {
                         echo "🚀 Déploiement avec Terraform..."
                         sh """
-                            echo "🔹 Init Terraform..."
                             terraform init
-
-                            echo "🔹 Apply Terraform..."
                             terraform apply -auto-approve \
                                 -var="frontend_image_tag=${IMAGE_TAG}" \
                                 -var="backend_image_tag=${IMAGE_TAG}"
