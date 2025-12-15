@@ -54,7 +54,7 @@ pipeline {
 
         stage('Deploy with Terraform') {
             steps {
-                dir('jenkins/terraform') {
+                dir('terraform') {
                     script {
                         echo "🚀 Déploiement avec Terraform..."
                         sh """
