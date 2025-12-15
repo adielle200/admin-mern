@@ -2,22 +2,23 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copier seulement les fichiers nécessaires au npm install
+# Copier uniquement les fichiers npm
 COPY package*.json ./
 
 # Installer les dépendances
 RUN npm ci --omit=dev
 
-# Copier tout le code du frontend
+# Copier TOUT le code du frontend (contexte = frontend/)
 COPY . .
 
-# Construire l’application
+# Build de l’application
 RUN npm run build
 
-# ---------------------------------------------------------------
-# Phase NGINX pour servir les fichiers
+# ------------------ PHASE NGINX ------------------
+
 FROM nginx:alpine
 
+# Adapter dist/build selon ton framework
 COPY --from=builder /app/dist /usr/share/nginx/html
 
 EXPOSE 80
