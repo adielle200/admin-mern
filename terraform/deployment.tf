@@ -1,9 +1,18 @@
-resource "kubernetes_deployment" "app_deployment" {
+# deployment.tf
+# Namespace
+resource "kubernetes_namespace" "app_namespace" {
   metadata {
-    name      = "mern-app"
+    name = "mern-app-ns"
+  }
+}
+
+# Frontend Deployment
+resource "kubernetes_deployment" "frontend_deployment" {
+  metadata {
+    name      = "mern-frontend"
     namespace = kubernetes_namespace.app_namespace.metadata[0].name
     labels = {
-      app = "mern-app"
+      app = "mern-frontend"
     }
   }
 
@@ -12,45 +21,25 @@ resource "kubernetes_deployment" "app_deployment" {
 
     selector {
       match_labels = {
-        app = "mern-app"
+        app = "mern-frontend"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "mern-app"
+          app = "mern-frontend"
         }
       }
 
       spec {
         container {
-          # CORRECTION ICI : Port 32000 et variable dynamique
-          image = "${var.image_name}:${var.image_tag}" # Utilisez seulement le nom et le tag
-          # ...
-          name  = "mern-app"
-          
-          # Force le téléchargement si vous réutilisez le tag 'latest'
-          image_pull_policy = "Always" 
+          name  = "mern-frontend"
+          image = "mern-frontend:${var.frontend_image_tag}"
+          image_pull_policy = "Always"
 
           port {
             container_port = 3000
-          }
-
-          env {
-            name = "NODE_ENV"
-            value_from {
-              config_map_key_ref {
-                name = kubernetes_config_map.app_config.metadata[0].name
-                key  = "NODE_ENV"
-              }
-            }
-          }
-
-          env_from {
-            secret_ref {
-              name = kubernetes_secret.app_secrets.metadata[0].name
-            }
           }
 
           resources {
@@ -64,11 +53,9 @@ resource "kubernetes_deployment" "app_deployment" {
             }
           }
 
-          # ATTENTION : Vérifiez que votre code JS a bien une route GET /api/health
-          # Sinon, supprimez ce bloc ou changez le path vers "/"
           liveness_probe {
             http_get {
-              path = "/" 
+              path = "/"
               port = 3000
             }
             initial_delay_seconds = 30
@@ -89,15 +76,86 @@ resource "kubernetes_deployment" "app_deployment" {
   }
 }
 
-resource "kubernetes_service" "app_service" {
+# Backend Deployment
+resource "kubernetes_deployment" "backend_deployment" {
   metadata {
-    name      = "mern-service"
+    name      = "mern-backend"
+    namespace = kubernetes_namespace.app_namespace.metadata[0].name
+    labels = {
+      app = "mern-backend"
+    }
+  }
+
+  spec {
+    replicas = 2
+
+    selector {
+      match_labels = {
+        app = "mern-backend"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "mern-backend"
+        }
+      }
+
+      spec {
+        container {
+          name  = "mern-backend"
+          image = "mern-backend:${var.backend_image_tag}"
+          image_pull_policy = "Always"
+
+          port {
+            container_port = 3000
+          }
+
+          resources {
+            limits = {
+              cpu    = "500m"
+              memory = "512Mi"
+            }
+            requests = {
+              cpu    = "250m"
+              memory = "256Mi"
+            }
+          }
+
+          liveness_probe {
+            http_get {
+              path = "/"
+              port = 3000
+            }
+            initial_delay_seconds = 30
+            period_seconds        = 10
+          }
+
+          readiness_probe {
+            http_get {
+              path = "/"
+              port = 3000
+            }
+            initial_delay_seconds = 5
+            period_seconds        = 5
+          }
+        }
+      }
+    }
+  }
+}
+
+# Frontend Service
+resource "kubernetes_service" "frontend_service" {
+  metadata {
+    name      = "frontend-service"
     namespace = kubernetes_namespace.app_namespace.metadata[0].name
   }
 
   spec {
     selector = {
-      app = kubernetes_deployment.app_deployment.metadata[0].labels.app
+      app = kubernetes_deployment.frontend_deployment.metadata[0].labels.app
     }
 
     port {
@@ -109,6 +167,28 @@ resource "kubernetes_service" "app_service" {
   }
 }
 
+# Backend Service
+resource "kubernetes_service" "backend_service" {
+  metadata {
+    name      = "backend-service"
+    namespace = kubernetes_namespace.app_namespace.metadata[0].name
+  }
+
+  spec {
+    selector = {
+      app = kubernetes_deployment.backend_deployment.metadata[0].labels.app
+    }
+
+    port {
+      port        = 80
+      target_port = 3000
+    }
+
+    type = "ClusterIP"
+  }
+}
+
+# Ingress
 resource "kubernetes_ingress_v1" "app_ingress" {
   metadata {
     name      = "mern-ingress"
@@ -127,7 +207,7 @@ resource "kubernetes_ingress_v1" "app_ingress" {
           path_type = "Prefix"
           backend {
             service {
-              name = kubernetes_service.app_service.metadata[0].name
+              name = kubernetes_service.frontend_service.metadata[0].name
               port {
                 number = 80
               }
