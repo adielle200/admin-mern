@@ -2,12 +2,13 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copier les fichiers backend
-COPY backend/package*.json ./
-RUN npm install
+COPY package*.json ./
 
-COPY backend ./
+RUN npm ci --omit=dev
+
+COPY . .
 
 EXPOSE 5000
+
 CMD ["npm", "start"]
 
